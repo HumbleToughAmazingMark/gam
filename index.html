@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Pulse Duel</title>
+	<link rel="stylesheet" href="style.css">
+</head>
+<body>
+	<main class="game-shell">
+		<header class="topbar">
+			<div>
+				<p class="eyebrow">LOCAL 1V1 // ARENA 01</p>
+				<h1>Pulse Duel</h1>
+			</div>
+			<button id="resetButton" class="reset-button" type="button">Reset round</button>
+		</header>
+
+		<section class="scoreboard" aria-label="Match status">
+			<div class="fighter-score blue-score">
+				<span class="fighter-name">BLUE</span>
+				<span id="blueHealth" class="health-value">100</span>
+				<div class="health-track"><div id="blueHealthBar" class="health-bar"></div></div>
+			</div>
+			<div id="roundStatus" class="round-status">FIGHT</div>
+			<div class="fighter-score red-score">
+				<span class="fighter-name">RED</span>
+				<span id="redHealth" class="health-value">100</span>
+				<div class="health-track"><div id="redHealthBar" class="health-bar"></div></div>
+			</div>
+		</section>
+
+		<div class="canvas-wrap">
+			<canvas id="gameCanvas" width="1000" height="560" aria-label="Pulse Duel game arena"></canvas>
+			<div id="gameMessage" class="game-message" hidden></div>
+		</div>
+
+		<section class="controls" aria-label="Controls">
+			<div class="control-block blue-controls">
+				<h2><span class="dot blue-dot"></span>Blue controls</h2>
+				<p><kbd>W</kbd> jump <kbd>A</kbd><kbd>D</kbd> move <kbd>S</kbd> parry <kbd>F</kbd> attack</p>
+				<p class="dash-note">Double-tap <kbd>A</kbd> or <kbd>D</kbd> to dash</p>
+			</div>
+			<div class="control-block red-controls">
+				<h2><span class="dot red-dot"></span>Red controls</h2>
+				<p><kbd>I</kbd> jump <kbd>J</kbd><kbd>L</kbd> move <kbd>K</kbd> parry <kbd>H</kbd> attack</p>
+				<p class="dash-note">Double-tap <kbd>J</kbd> or <kbd>L</kbd> to dash</p>
+			</div>
+		</section>
+	</main>
+	<script src="code.js"></script>
+</body>
+</html>
