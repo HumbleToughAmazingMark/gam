@@ -125,7 +125,7 @@ function getInputVector(fighter) {
 
 function handlePress(fighter, key) {
 	if (key === fighter.jump && fighter.stunTimer <= 0) attemptJump(fighter);
-	if (key === fighter.parry && fighter.stunTimer <= 0 && fighter.parryCooldown <= 0) { fighter.parryTimer = 18; fighter.parryCooldown = 300; }
+	if (key === fighter.parry && fighter.stunTimer <= 0 && fighter.parryCooldown <= 0) { fighter.parryTimer = 18; fighter.parryCooldown = 180; }
 	if (key === fighter.attack && fighter.stunTimer <= 0 && fighter.attackTimer <= 0) fighter.attackTimer = 24;
 	if ([fighter.left, fighter.right, fighter.jump, fighter.down].includes(key)) {
 		const now = performance.now();
@@ -157,7 +157,7 @@ function startDash(fighter) {
 	const vector = getInputVector(fighter);
 	if ((!vector.x && !vector.y) || fighter.dashCooldown > 0) return;
 	fighter.dashTimer = 11;
-	fighter.dashCooldown = 300;
+	fighter.dashCooldown = 180;
 	fighter.dashVector = vector;
 	fighter.facing = vector.x || fighter.facing;
 	emitEffect(fighter.x, fighter.y, fighter.accent, 'dash');
@@ -384,10 +384,10 @@ function updateHealth() {
 }
 
 function updateCooldowns() {
-	blueParryCooldown.style.width = `${(1 - blue.parryCooldown / 300) * 100}%`;
-	redParryCooldown.style.width = `${(1 - red.parryCooldown / 300) * 100}%`;
-	blueDashCooldown.style.width = `${(1 - blue.dashCooldown / 300) * 100}%`;
-	redDashCooldown.style.width = `${(1 - red.dashCooldown / 300) * 100}%`;
+	blueParryCooldown.style.width = `${(1 - blue.parryCooldown / 180) * 100}%`;
+	redParryCooldown.style.width = `${(1 - red.parryCooldown / 180) * 100}%`;
+	blueDashCooldown.style.width = `${(1 - blue.dashCooldown / 180) * 100}%`;
+	redDashCooldown.style.width = `${(1 - red.dashCooldown / 180) * 100}%`;
 }
 
 function updateCamera() {
