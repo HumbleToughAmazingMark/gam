@@ -471,12 +471,14 @@ function draw() {
 }
 
 function drawSky() {
-	const sky = context.createLinearGradient(0, 0, 0, canvas.height);
-	sky.addColorStop(0, arena.sky[0]); sky.addColorStop(1, arena.sky[1]);
-	context.fillStyle = sky; context.fillRect(0, 0, canvas.width, canvas.height);
+	context.fillStyle = '#222936';
+	context.fillRect(0, 0, canvas.width, canvas.height);
 }
 
 function drawArena() {
+	const sky = context.createLinearGradient(0, CEILING, 0, GROUND);
+	sky.addColorStop(0, arena.sky[0]); sky.addColorStop(1, arena.sky[1]);
+	context.fillStyle = sky; context.fillRect(0, CEILING, WORLD_WIDTH, GROUND - CEILING);
 	context.strokeStyle = arena.grid; context.lineWidth = 1;
 	for (let x = 0; x <= WORLD_WIDTH; x += 40) { context.beginPath(); context.moveTo(x, 0); context.lineTo(x, GROUND); context.stroke(); }
 	for (let y = CEILING; y < GROUND; y += 40) { context.beginPath(); context.moveTo(0, y); context.lineTo(WORLD_WIDTH, y); context.stroke(); }
