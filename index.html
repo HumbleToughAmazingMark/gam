@@ -13,38 +13,43 @@
 				<p class="eyebrow">LOCAL 1V1 // ARENA 01</p>
 				<h1>Pulse Duel</h1>
 			</div>
-			<button id="resetButton" class="reset-button" type="button">Reset round</button>
+			<div class="topbar-actions"><button id="fullscreenButton" class="reset-button" type="button">Fullscreen</button><button id="resetButton" class="reset-button" type="button">Reset round</button></div>
 		</header>
 
 		<section class="scoreboard" aria-label="Match status">
 			<div class="fighter-score blue-score">
 				<span class="fighter-name">BLUE</span>
-				<span id="blueHealth" class="health-value">100</span>
-				<div class="health-track"><div id="blueHealthBar" class="health-bar"></div></div>
 			</div>
 			<div id="roundStatus" class="round-status">FIGHT</div>
 			<div class="fighter-score red-score">
 				<span class="fighter-name">RED</span>
-				<span id="redHealth" class="health-value">100</span>
-				<div class="health-track"><div id="redHealthBar" class="health-bar"></div></div>
 			</div>
 		</section>
 
 		<div class="canvas-wrap">
-			<canvas id="gameCanvas" width="1000" height="560" aria-label="Pulse Duel game arena"></canvas>
+			<canvas id="gameCanvas" width="1000" height="781" aria-label="Pulse Duel game arena"></canvas>
 			<div id="gameMessage" class="game-message" hidden></div>
+			<div id="arenaLabel" class="arena-label">ARENA 01 // CONCRETE GRID</div>
+			<div class="battle-health-hud" aria-label="Player health">
+				<div class="battle-health blue-battle-health"><div class="battle-health-heading"><span>BLUE</span><strong id="blueHealth">100</strong></div><div class="health-track"><div id="blueHealthBar" class="health-bar"></div></div></div>
+				<div class="battle-health red-battle-health"><div class="battle-health-heading"><strong id="redHealth">100</strong><span>RED</span></div><div class="health-track"><div id="redHealthBar" class="health-bar"></div></div></div>
+			</div>
+			<div class="cooldown-hud" aria-label="Player ability cooldowns">
+				<div class="cooldown-item blue-cooldown"><div class="cooldown-subitem"><span>BLUE PARRY</span><div class="cooldown-track"><div id="blueParryCooldown" class="cooldown-fill"></div></div></div><div class="cooldown-subitem"><span>BLUE DASH</span><div class="cooldown-track"><div id="blueDashCooldown" class="cooldown-fill"></div></div></div></div>
+				<div class="cooldown-item red-cooldown"><div class="cooldown-subitem"><span>RED PARRY</span><div class="cooldown-track"><div id="redParryCooldown" class="cooldown-fill"></div></div></div><div class="cooldown-subitem"><span>RED DASH</span><div class="cooldown-track"><div id="redDashCooldown" class="cooldown-fill"></div></div></div></div>
+			</div>
 		</div>
 
 		<section class="controls" aria-label="Controls">
 			<div class="control-block blue-controls">
 				<h2><span class="dot blue-dot"></span>Blue controls</h2>
 				<p><kbd>W</kbd> jump <kbd>A</kbd><kbd>D</kbd> move <kbd>S</kbd> parry <kbd>F</kbd> attack</p>
-				<p class="dash-note">Double-tap <kbd>A</kbd> or <kbd>D</kbd> to dash</p>
+				<p class="dash-note">Double-tap a direction to dash; jump twice or jump from walls</p>
 			</div>
 			<div class="control-block red-controls">
 				<h2><span class="dot red-dot"></span>Red controls</h2>
 				<p><kbd>I</kbd> jump <kbd>J</kbd><kbd>L</kbd> move <kbd>K</kbd> parry <kbd>H</kbd> attack</p>
-				<p class="dash-note">Double-tap <kbd>J</kbd> or <kbd>L</kbd> to dash</p>
+				<p class="dash-note">Double-tap a direction to dash; jump twice or jump from walls</p>
 			</div>
 		</section>
 	</main>
