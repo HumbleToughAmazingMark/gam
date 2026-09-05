@@ -34,7 +34,7 @@ let nextRoundTimer = 0;
 let arena = null;
 let camera = { x: WORLD_WIDTH / 2, y: 360, zoom: 1 };
 let freezeTimer = 0;
-let powerupSpawnTimer = 2400;
+let powerupSpawnTimer = 1500;
 
 const arenaThemes = [
 	{ name: 'CONCRETE GRID', sky: ['#e7eef0', '#b8c7c9'], floor: '#283139', stripe: '#f1c84b', grid: 'rgba(22, 23, 27, .1)' },
@@ -95,7 +95,7 @@ function startArena(advance = false) {
 	roundStatus.textContent = 'FIGHT';
 	arenaLabel.textContent = `ARENA ${String(arenaIndex + 1).padStart(2, '0')} // ${arena.name}${arena.lava ? ' // LAVA FLOOR' : ''}`;
 	effects.length = 0;
-	powerupSpawnTimer = 2400;
+	powerupSpawnTimer = 1500;
 	updateHealth();
 	updateCooldowns();
 }
@@ -411,7 +411,7 @@ function updatePowerup() {
 			const platform = horizontalPlatforms[randomBetween(0, horizontalPlatforms.length - 1)];
 			arena.powerup = { x: platform.x + platform.width / 2, y: platform.y - 22, type: Math.random() < 0.5 ? 'yellow' : 'green', life: 600 };
 		}
-		powerupSpawnTimer = 2400;
+		powerupSpawnTimer = 1500;
 	}
 	for (const fighter of fighters) {
 		if (fighter.powerupTimer > 0) {
@@ -518,7 +518,7 @@ function drawFighter(fighter) {
 	context.shadowColor = fighter.color; context.shadowBlur = fighter.dashTimer ? 34 : 16;
 	context.fillStyle = fighter.color; context.beginPath(); context.arc(0, 0, fighter.radius, 0, Math.PI * 2); context.fill();
 	if (fighter.powerup) {
-		const powerupColor = fighter.powerup === 'yellow' ? '#f1c84b' : '#53d68b';
+		const powerupColor = getPowerupColor(fighter.powerup);
 		context.globalAlpha = 0.45 + Math.sin(performance.now() / 90) * 0.2;
 		context.shadowColor = powerupColor; context.shadowBlur = 28;
 		context.strokeStyle = powerupColor; context.lineWidth = 5; context.beginPath(); context.arc(0, 0, fighter.radius + 8, 0, Math.PI * 2); context.stroke();
@@ -530,6 +530,10 @@ function drawFighter(fighter) {
 	if (fighter.parryTimer) { context.strokeStyle = '#f1c84b'; context.lineWidth = 4; context.beginPath(); context.arc(0, 0, 60, 0, Math.PI * 2); context.stroke(); }
 	if (fighter.criticalTimer) { context.save(); context.fillStyle = '#f1c84b'; context.font = '800 18px "Barlow Condensed"'; context.textAlign = 'center'; context.fillText('CRITICAL!', 0, -58); context.restore(); }
 	context.restore();
+}
+
+function getPowerupColor(type) {
+	return type === 'yellow' ? '#f1c84b' : '#53d68b';
 }
 
 function drawSwordSwing(fighter) {
