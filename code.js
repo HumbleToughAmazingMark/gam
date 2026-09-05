@@ -13,9 +13,33 @@ const blueDashCooldown = document.querySelector('#blueDashCooldown');
 const redDashCooldown = document.querySelector('#redDashCooldown');
 const canvasWrap = document.querySelector('.canvas-wrap');
 const fullscreenButton = document.querySelector('#fullscreenButton');
+const lobby = document.querySelector('#lobby');
+const gameArea = document.querySelector('#gameArea');
+const connectionLabel = document.querySelector('#connectionLabel');
+const createRoomButton = document.querySelector('#createRoomButton');
+const joinRoomButton = document.querySelector('#joinRoomButton');
+const roomCodeInput = document.querySelector('#roomCodeInput');
+const lobbyStatus = document.querySelector('#lobbyStatus');
+const roomPanel = document.querySelector('#roomPanel');
+const roomCodeDisplay = document.querySelector('#roomCodeDisplay');
+const roomPlayerStatus = document.querySelector('#roomPlayerStatus');
+const startMatchButton = document.querySelector('#startMatchButton');
+const colorButtons = [...document.querySelectorAll('.color-button')];
 const keys = new Set();
+const remoteKeys = new Set();
 const lastTap = new Map();
 const effects = [];
+const networkTargets = new Map();
+let socket = null;
+let playerId = null;
+let roomCode = null;
+let roomPlayers = [];
+let selectedColor = null;
+let localFighter = null;
+let remoteFighter = null;
+let matchStarted = false;
+let isHost = false;
+let lastStateSentAt = 0;
 
 const GRAVITY = 0.496;
 const GROUND = 683;
@@ -43,8 +67,9 @@ const arenaThemes = [
 	{ name: 'LIME FACTORY', sky: ['#d9e6b2', '#8eae91'], floor: '#263b38', stripe: '#f1c84b', grid: 'rgba(22, 23, 27, .13)' }
 ];
 
-const blue = createFighter({ name: 'BLUE', x: 270, color: '#2375ff', accent: '#bcd5ff', left: 'a', right: 'd', jump: 'w', down: 's', parry: 's', attack: 'f' });
-const red = createFighter({ name: 'RED', x: 1230, color: '#ef4d45', accent: '#ffd0c9', left: 'arrowleft', right: 'arrowright', jump: 'arrowup', down: 'arrowdown', parry: 'arrowdown', attack: '/' });
+const sharedControls = { left: 'a', right: 'd', jump: 'w', down: 's', parry: 's', attack: 'space' };
+const blue = createFighter({ name: 'BLUE', x: 270, color: '#2375ff', accent: '#bcd5ff', ...sharedControls });
+const red = createFighter({ name: 'RED', x: 1230, color: '#ef4d45', accent: '#ffd0c9', ...sharedControls });
 const fighters = [blue, red];
 
 function createFighter(options) {
@@ -83,9 +108,9 @@ function resetFighter(fighter, spawnPlatform) {
 	fighter.y = spawnPlatform.y - fighter.radius;
 }
 
-function startArena(advance = false) {
+function startArena(advance = false, arenaData = null) {
 	if (advance) arenaIndex = (arenaIndex + 1) % arenaThemes.length;
-	arena = createArena();
+	arena = arenaData || createArena();
 	arena.powerup = null;
 	resetFighter(blue, arena.platforms[0]);
 	resetFighter(red, arena.platforms[1]);
@@ -95,30 +120,216 @@ function startArena(advance = false) {
 	roundStatus.textContent = 'FIGHT';
 	arenaLabel.textContent = `ARENA ${String(arenaIndex + 1).padStart(2, '0')} // ${arena.name}${arena.lava ? ' // LAVA FLOOR' : ''}`;
 	effects.length = 0;
+	networkTargets.clear();
 	powerupSpawnTimer = 1500;
 	updateHealth();
 	updateCooldowns();
+	if (isHost && matchStarted) {
+		sendMessage({ type: 'arena-data', arena });
+		sendState(true);
+	}
 }
 
+function normalizeKey(event) { return event.code === 'Space' ? 'space' : event.key.toLowerCase(); }
+
 window.addEventListener('keydown', (event) => {
-	const key = event.key.toLowerCase();
-	const fighterKeys = ['w', 'a', 's', 'd', 'f', 'r', '/', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'];
+	const key = normalizeKey(event);
+	const fighterKeys = ['w', 'a', 's', 'd', 'r', 'space'];
 	if (fighterKeys.includes(key)) event.preventDefault();
-	if (key === 'r' && gameOver) startArena();
-	if (event.repeat || keys.has(key) || gameOver) return;
+	if (key === 'r' && gameOver) {
+		if (isHost) startArena();
+		else sendMessage({ type: 'reset' });
+		return;
+	}
+	if (!matchStarted || event.repeat || keys.has(key) || gameOver) return;
 	keys.add(key);
-	for (const fighter of fighters) handlePress(fighter, key);
+	if (isHost) handlePress(localFighter, key);
+	sendMessage({ type: 'input', action: 'down', key });
 });
-window.addEventListener('keyup', (event) => keys.delete(event.key.toLowerCase()));
-document.querySelector('#resetButton').addEventListener('click', () => startArena());
+window.addEventListener('keyup', (event) => {
+	const key = normalizeKey(event);
+	keys.delete(key);
+	if (matchStarted) sendMessage({ type: 'input', action: 'up', key });
+});
+document.querySelector('#resetButton').addEventListener('click', () => {
+		if (!matchStarted) return;
+		if (isHost) startArena();
+		else sendMessage({ type: 'reset' });
+});
 fullscreenButton.addEventListener('click', async () => {
 		if (document.fullscreenElement) await document.exitFullscreen();
 		else await canvasWrap.requestFullscreen();
 });
 
+function setLobbyStatus(message, isError = false) {
+	lobbyStatus.textContent = message;
+	lobbyStatus.classList.toggle('error', isError);
+}
+
+function sendMessage(message) {
+	if (socket && socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
+}
+
+function getStateSnapshot() {
+	return {
+		arenaIndex,
+		arena: JSON.parse(JSON.stringify(arena)),
+		fighters: fighters.map((fighter) => ({
+			name: fighter.name,
+			x: fighter.x,
+			y: fighter.y,
+			vx: fighter.vx,
+			vy: fighter.vy,
+			health: fighter.health,
+			grounded: fighter.grounded,
+			wallSide: fighter.wallSide,
+			jumpsRemaining: fighter.jumpsRemaining,
+			facing: fighter.facing,
+			attackTimer: fighter.attackTimer,
+			parryTimer: fighter.parryTimer,
+			parryCooldown: fighter.parryCooldown,
+			contactCooldown: fighter.contactCooldown,
+			dashTimer: fighter.dashTimer,
+			dashCooldown: fighter.dashCooldown,
+			dashVector: fighter.dashVector,
+			stunTimer: fighter.stunTimer,
+			flashTimer: fighter.flashTimer,
+			criticalTimer: fighter.criticalTimer,
+			powerup: fighter.powerup,
+			powerupTimer: fighter.powerupTimer,
+			hitThisSwing: fighter.hitThisSwing
+		})),
+		gameOver,
+		nextRoundTimer,
+		freezeTimer,
+		powerupSpawnTimer,
+		roundStatus: roundStatus.textContent,
+		gameMessage: { text: gameMessage.textContent, hidden: gameMessage.hidden },
+		arenaLabel: arenaLabel.textContent,
+		effects: effects.map((effect) => ({ ...effect }))
+	};
+}
+
+function sendState(force = false) {
+	if (!isHost || !matchStarted || !arena) return;
+	const now = performance.now();
+	if (!force && now - lastStateSentAt < 50) return;
+	lastStateSentAt = now;
+	sendMessage({ type: 'state', state: getStateSnapshot() });
+}
+
+function applyState(state) {
+	if (!state || !state.arena) return;
+	arenaIndex = state.arenaIndex;
+	arena = state.arena;
+	for (const stateFighter of state.fighters) {
+		const fighter = stateFighter.name === 'BLUE' ? blue : red;
+		if (isHost) Object.assign(fighter, stateFighter);
+		else {
+			const { x, y, vx, vy, ...fighterState } = stateFighter;
+			Object.assign(fighter, fighterState);
+			if (!networkTargets.has(fighter.name)) {
+				Object.assign(fighter, { x, y, vx, vy });
+			}
+			networkTargets.set(fighter.name, { x, y, vx, vy });
+		}
+	}
+	if (Array.isArray(state.effects)) {
+		effects.length = 0;
+		effects.push(...state.effects);
+	}
+	gameOver = state.gameOver;
+	nextRoundTimer = state.nextRoundTimer;
+	freezeTimer = state.freezeTimer;
+	powerupSpawnTimer = state.powerupSpawnTimer;
+	roundStatus.textContent = state.roundStatus;
+	gameMessage.textContent = state.gameMessage.text;
+	gameMessage.hidden = state.gameMessage.hidden;
+	arenaLabel.textContent = state.arenaLabel;
+	updateHealth();
+	updateCooldowns();
+}
+
+function renderRoom(room) {
+	roomCode = room.code;
+	roomPlayers = room.players;
+	roomCodeDisplay.textContent = room.code;
+	roomPanel.hidden = false;
+	const otherPlayer = room.players.find((player) => player.id !== playerId);
+	roomPlayerStatus.textContent = otherPlayer ? 'Opponent connected. Choose a colour.' : 'Waiting for another player...';
+	for (const button of colorButtons) {
+		const color = button.dataset.color;
+		const takenByOther = room.players.some((player) => player.id !== playerId && player.color === color);
+		button.disabled = takenByOther;
+		button.classList.toggle('selected', room.players.find((player) => player.id === playerId)?.color === color);
+	}
+	const ready = room.players.length === 2 && room.players.every((player) => player.color);
+	startMatchButton.disabled = room.hostId !== playerId || !ready;
+	startMatchButton.textContent = room.hostId === playerId ? 'Start match' : 'Host starts match';
+}
+
+function handleServerMessage(message) {
+	if (message.type === 'player-id') playerId = message.id;
+	if (message.type === 'room-state') {
+		renderRoom(message);
+		setLobbyStatus(`Room ${message.code} is ready.`);
+	}
+	if (message.type === 'error') setLobbyStatus(message.message, true);
+	if (message.type === 'match-started') {
+		matchStarted = true;
+		const player = message.players.find((entry) => entry.id === playerId);
+		if (!player) {
+			setLobbyStatus('Could not identify this player in the room.', true);
+			return;
+		}
+		isHost = message.isHost === true || (message.isHost === undefined && (message.hostId === playerId || player.id === message.players[0].id));
+		selectedColor = player.color;
+		localFighter = selectedColor === 'BLUE' ? blue : red;
+		remoteFighter = localFighter === blue ? red : blue;
+		lobby.hidden = true;
+		gameArea.hidden = false;
+		connectionLabel.textContent = `ONLINE 1V1 // ROOM ${roomCode}`;
+		setLobbyStatus('Match starting...');
+		if (isHost) {
+			startArena();
+		}
+	}
+	if (message.type === 'arena-data' && !isHost) startArena(false, message.arena);
+	if (message.type === 'state' && !isHost) applyState(message.state);
+	if (message.type === 'reset' && isHost) startArena();
+	if (message.type === 'input' && remoteFighter) {
+		if (isHost && message.action === 'down' && !remoteKeys.has(message.key)) {
+			remoteKeys.add(message.key);
+			handlePress(remoteFighter, message.key);
+		} else if (isHost && message.action === 'up') remoteKeys.delete(message.key);
+	}
+}
+
+function connectToServer() {
+	const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+	socket = new WebSocket(`${protocol}://${location.host}`);
+	socket.addEventListener('open', () => {
+		createRoomButton.disabled = false;
+		joinRoomButton.disabled = false;
+		setLobbyStatus('Connected. Create a room or join one with a code.');
+	});
+	socket.addEventListener('message', (event) => handleServerMessage(JSON.parse(event.data)));
+	socket.addEventListener('close', () => {
+		createRoomButton.disabled = true;
+		joinRoomButton.disabled = true;
+		setLobbyStatus('Disconnected from the room server.', true);
+	});
+}
+
+createRoomButton.addEventListener('click', () => sendMessage({ type: 'create-room' }));
+joinRoomButton.addEventListener('click', () => sendMessage({ type: 'join-room', code: roomCodeInput.value }));
+for (const button of colorButtons) button.addEventListener('click', () => { selectedColor = button.dataset.color; sendMessage({ type: 'choose-color', color: selectedColor }); });
+startMatchButton.addEventListener('click', () => sendMessage({ type: 'start-match' }));
+
 function getInputVector(fighter) {
-	const horizontal = (keys.has(fighter.right) ? 1 : 0) - (keys.has(fighter.left) ? 1 : 0);
-	const vertical = (keys.has(fighter.down) ? 1 : 0) - (keys.has(fighter.jump) ? 1 : 0);
+	const fighterKeys = fighter === localFighter ? keys : remoteKeys;
+	const horizontal = (fighterKeys.has(fighter.right) ? 1 : 0) - (fighterKeys.has(fighter.left) ? 1 : 0);
+	const vertical = (fighterKeys.has(fighter.down) ? 1 : 0) - (fighterKeys.has(fighter.jump) ? 1 : 0);
 	const length = Math.hypot(horizontal, vertical) || 1;
 	return { x: horizontal / length, y: vertical / length };
 }
@@ -165,17 +376,24 @@ function startDash(fighter) {
 }
 
 function update() {
-	if (freezeTimer > 0) freezeTimer--;
-	if (!gameOver && freezeTimer === 0) {
-		for (const fighter of fighters) updateFighter(fighter);
-		resolveFighterContact();
-		stabilizeFighter(blue);
-		stabilizeFighter(red);
-		updatePowerup();
-		resolveAttack(blue, red);
-		resolveAttack(red, blue);
-		if (blue.health <= 0 || red.health <= 0) finishRound();
-	} else if (nextRoundTimer > 0 && --nextRoundTimer === 0) startArena(true);
+	if (!arena) {
+		requestAnimationFrame(update);
+		return;
+	}
+	if (isHost) {
+		if (freezeTimer > 0) freezeTimer--;
+		if (!gameOver && freezeTimer === 0) {
+			for (const fighter of fighters) updateFighter(fighter);
+			resolveFighterContact();
+			stabilizeFighter(blue);
+			stabilizeFighter(red);
+			updatePowerup();
+			resolveAttack(blue, red);
+			resolveAttack(red, blue);
+			if (blue.health <= 0 || red.health <= 0) finishRound();
+		} else if (nextRoundTimer > 0 && --nextRoundTimer === 0) startArena(true);
+		sendState();
+	} else smoothNetworkFighters();
 	updateEffects();
 	updateCooldowns();
 	updateCamera();
@@ -184,12 +402,30 @@ function update() {
 	requestAnimationFrame(update);
 }
 
+function smoothNetworkFighters() {
+	for (const fighter of fighters) {
+		const target = networkTargets.get(fighter.name);
+		if (!target) continue;
+		const distance = Math.hypot(target.x - fighter.x, target.y - fighter.y);
+		if (distance > 180) {
+			fighter.x = target.x;
+			fighter.y = target.y;
+		} else {
+			fighter.x += (target.x - fighter.x) * 0.28;
+			fighter.y += (target.y - fighter.y) * 0.28;
+		}
+		fighter.vx += (target.vx - fighter.vx) * 0.28;
+		fighter.vy += (target.vy - fighter.vy) * 0.28;
+	}
+}
+
 function updateFighter(fighter) {
 	const previousX = fighter.x;
 	const previousY = fighter.y;
 	const previousBottom = fighter.y + fighter.radius;
-	const movingLeft = keys.has(fighter.left);
-	const movingRight = keys.has(fighter.right);
+	const fighterKeys = fighter === localFighter ? keys : remoteKeys;
+	const movingLeft = fighterKeys.has(fighter.left);
+	const movingRight = fighterKeys.has(fighter.right);
 	const direction = movingLeft === movingRight ? 0 : movingLeft ? -1 : 1;
 	if (fighter.stunTimer > 0) fighter.stunTimer--;
 	if (fighter.attackTimer > 0) fighter.attackTimer--;
@@ -565,5 +801,5 @@ function drawEffects() {
 	}
 }
 
-startArena();
+connectToServer();
 update();

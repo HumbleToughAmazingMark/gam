@@ -10,13 +10,25 @@
 	<main class="game-shell">
 		<header class="topbar">
 			<div>
-				<p class="eyebrow">LOCAL 1V1 // ARENA 01</p>
+				<p id="connectionLabel" class="eyebrow">ONLINE 1V1 // ROOM LOBBY</p>
 				<h1>Pulse Duel</h1>
 			</div>
-			<div class="topbar-actions"><button id="fullscreenButton" class="reset-button" type="button">Fullscreen</button><button id="resetButton" class="reset-button" type="button">Reset round</button></div>
+				<div class="topbar-actions"><button id="fullscreenButton" class="reset-button" type="button">Fullscreen</button><button id="resetButton" class="reset-button" type="button">Reset round</button></div>
 		</header>
 
-		<section class="scoreboard" aria-label="Match status">
+			<section id="lobby" class="lobby" aria-label="Online room lobby">
+				<div class="lobby-heading"><span class="eyebrow">PRIVATE MATCHMAKING</span><h2>Enter the arena together.</h2><p>Create a room and send its five-digit code to your opponent.</p></div>
+				<div class="room-actions"><button id="createRoomButton" class="lobby-button primary" type="button" disabled>Create room</button><label class="room-code-input"><span>Room code</span><input id="roomCodeInput" inputmode="numeric" maxlength="5" placeholder="00000" autocomplete="off"></label><button id="joinRoomButton" class="lobby-button" type="button" disabled>Join room</button></div>
+				<div id="lobbyStatus" class="lobby-status" role="status">Connecting to the room server...</div>
+				<div id="roomPanel" class="room-panel" hidden>
+					<div><span class="eyebrow">ROOM CODE</span><strong id="roomCodeDisplay">00000</strong><p id="roomPlayerStatus">Waiting for another player...</p></div>
+					<div class="color-choice"><span class="eyebrow">CHOOSE YOUR COLOUR</span><div class="color-buttons"><button class="color-button blue-choice" data-color="BLUE" type="button">Blue</button><button class="color-button red-choice" data-color="RED" type="button">Red</button></div></div>
+					<button id="startMatchButton" class="lobby-button primary" type="button" disabled>Start match</button>
+				</div>
+			</section>
+
+			<section id="gameArea" hidden>
+			<section class="scoreboard" aria-label="Match status">
 			<div class="fighter-score blue-score">
 				<span class="fighter-name">BLUE</span>
 			</div>
@@ -41,16 +53,8 @@
 		</div>
 
 		<section class="controls" aria-label="Controls">
-			<div class="control-block blue-controls">
-				<h2><span class="dot blue-dot"></span>Blue controls</h2>
-				<p><kbd>W</kbd> jump <kbd>A</kbd><kbd>D</kbd> move <kbd>S</kbd> parry <kbd>F</kbd> attack</p>
-				<p class="dash-note">Double-tap a direction to dash; jump twice or jump from walls</p>
-			</div>
-			<div class="control-block red-controls">
-				<h2><span class="dot red-dot"></span>Red controls</h2>
-				<p><kbd>↑</kbd> jump <kbd>←</kbd><kbd>→</kbd> move <kbd>↓</kbd> parry <kbd>/</kbd> attack</p>
-				<p class="dash-note">Double-tap a direction to dash; jump twice or jump from walls</p>
-			</div>
+			<div class="control-block"><h2><span class="dot blue-dot"></span>Shared controls</h2><p><kbd>W</kbd> jump <kbd>A</kbd><kbd>D</kbd> move <kbd>S</kbd> parry <kbd>Space</kbd> attack</p><p class="dash-note">Double-tap a direction to dash; jump twice or jump from walls</p></div>
+		</section>
 		</section>
 	</main>
 	<script src="code.js"></script>
