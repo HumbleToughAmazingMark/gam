@@ -44,7 +44,7 @@ const arenaThemes = [
 ];
 
 const blue = createFighter({ name: 'BLUE', x: 270, color: '#2375ff', accent: '#bcd5ff', left: 'a', right: 'd', jump: 'w', down: 's', parry: 's', attack: 'f' });
-const red = createFighter({ name: 'RED', x: 1230, color: '#ef4d45', accent: '#ffd0c9', left: 'j', right: 'l', jump: 'i', down: 'k', parry: 'k', attack: 'h' });
+const red = createFighter({ name: 'RED', x: 1230, color: '#ef4d45', accent: '#ffd0c9', left: 'ArrowLeft', right: 'ArrowRight', jump: 'ArrowUp', down: 'ArrowDown', parry: 'ArrowDown', attack: '/' });
 const fighters = [blue, red];
 
 function createFighter(options) {
@@ -102,7 +102,7 @@ function startArena(advance = false) {
 
 window.addEventListener('keydown', (event) => {
 	const key = event.key.toLowerCase();
-	const fighterKeys = ['w', 'a', 's', 'd', 'f', 'i', 'j', 'k', 'l', 'h', 'r'];
+	const fighterKeys = ['w', 'a', 's', 'd', 'f', 'r', '/', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
 	if (fighterKeys.includes(key)) event.preventDefault();
 	if (key === 'r' && gameOver) startArena();
 	if (event.repeat || keys.has(key) || gameOver) return;
