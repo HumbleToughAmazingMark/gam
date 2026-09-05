@@ -306,8 +306,14 @@ function handleServerMessage(message) {
 }
 
 function connectToServer() {
+	const configuredServer = window.PULSE_DUEL_SERVER_URL || new URLSearchParams(location.search).get('server');
 	const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-	socket = new WebSocket(`${protocol}://${location.host}`);
+	const serverUrl = configuredServer || `${protocol}://${location.host}`;
+	if (!configuredServer && location.hostname.endsWith('github.io')) {
+		setLobbyStatus('GitHub Pages needs a WebSocket server URL in server-config.js.', true);
+		return;
+	}
+	socket = new WebSocket(serverUrl);
 	socket.addEventListener('open', () => {
 		createRoomButton.disabled = false;
 		joinRoomButton.disabled = false;
