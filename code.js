@@ -40,6 +40,7 @@ let remoteFighter = null;
 let matchStarted = false;
 let isHost = false;
 let lastStateSentAt = 0;
+let lastInputStateSentAt = 0;
 
 const GRAVITY = 0.496;
 const GROUND = 683;
@@ -143,7 +144,7 @@ window.addEventListener('keydown', (event) => {
 	}
 	if (!matchStarted || event.repeat || keys.has(key) || gameOver) return;
 	keys.add(key);
-	if (isHost) handlePress(localFighter, key);
+	if (localFighter) handlePress(localFighter, key);
 	sendMessage({ type: 'input', action: 'down', key });
 });
 window.addEventListener('keyup', (event) => {
@@ -213,9 +214,17 @@ function getStateSnapshot() {
 function sendState(force = false) {
 	if (!isHost || !matchStarted || !arena) return;
 	const now = performance.now();
-	if (!force && now - lastStateSentAt < 50) return;
+	if (!force && now - lastStateSentAt < 33) return;
 	lastStateSentAt = now;
 	sendMessage({ type: 'state', state: getStateSnapshot() });
+}
+
+function sendInputState() {
+	if (!matchStarted || isHost) return;
+	const now = performance.now();
+	if (now - lastInputStateSentAt < 50) return;
+	lastInputStateSentAt = now;
+	sendMessage({ type: 'input-state', keys: [...keys] });
 }
 
 function applyState(state) {
@@ -302,6 +311,10 @@ function handleServerMessage(message) {
 			remoteKeys.add(message.key);
 			handlePress(remoteFighter, message.key);
 		} else if (isHost && message.action === 'up') remoteKeys.delete(message.key);
+	}
+	if (message.type === 'input-state' && isHost && Array.isArray(message.keys)) {
+		remoteKeys.clear();
+		for (const key of message.keys) remoteKeys.add(key);
 	}
 }
 
@@ -399,7 +412,14 @@ function update() {
 			if (blue.health <= 0 || red.health <= 0) finishRound();
 		} else if (nextRoundTimer > 0 && --nextRoundTimer === 0) startArena(true);
 		sendState();
-	} else smoothNetworkFighters();
+	} else {
+		if (localFighter) {
+			updateFighter(localFighter);
+			stabilizeFighter(localFighter);
+		}
+		smoothNetworkFighters();
+		sendInputState();
+	}
 	updateEffects();
 	updateCooldowns();
 	updateCamera();
@@ -417,11 +437,13 @@ function smoothNetworkFighters() {
 			fighter.x = target.x;
 			fighter.y = target.y;
 		} else {
-			fighter.x += (target.x - fighter.x) * 0.28;
-			fighter.y += (target.y - fighter.y) * 0.28;
+			const correctionRate = fighter === localFighter ? 0.12 : 0.28;
+			fighter.x += (target.x - fighter.x) * correctionRate;
+			fighter.y += (target.y - fighter.y) * correctionRate;
 		}
-		fighter.vx += (target.vx - fighter.vx) * 0.28;
-		fighter.vy += (target.vy - fighter.vy) * 0.28;
+		const velocityRate = fighter === localFighter ? 0.12 : 0.28;
+		fighter.vx += (target.vx - fighter.vx) * velocityRate;
+		fighter.vy += (target.vy - fighter.vy) * velocityRate;
 	}
 }
 

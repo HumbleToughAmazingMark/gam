@@ -98,6 +98,9 @@ webSocketServer.on('connection', (socket) => {
 		if (message.type === 'input' && room.started) {
 			for (const entry of room.players) if (entry.socket !== socket) send(entry.socket, { type: 'input', action: message.action, key: message.key });
 		}
+		if (message.type === 'input-state' && room.started) {
+			for (const entry of room.players) if (entry.socket !== socket) send(entry.socket, { type: 'input-state', keys: message.keys });
+		}
 	});
 	socket.on('close', () => leaveRoom(socket));
 });
